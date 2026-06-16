@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Objetivos · 2026</title>
+<style>
+  :root{
+    --grad-1: #3E73A6;
+    --grad-2: #4FA6B5;
+    --grad-3: #74C2A3;
+    --grad-4: #C3DD9F;
+    --paper: #FFFFFF;
+    --paper-dim: #EEF6F1;
+    --amber: #E8A33D;
+    --amber-deep: #C97F1F;
+    --teal: #2F8F8B;
+    --teal-deep: #145C56;
+    --violet: #8449D9;
+    --violet-deep: #6A36B5;
+    --violet-light: #EFE6FB;
+    --coral: #E2574C;
+    --graphite: #20302E;
+    --gray: #62716F;
+    --line-on-glass: rgba(20,92,86,0.14);
+    --font-display: "Archivo Narrow", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+    --font-body: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: linear-gradient(125deg, var(--grad-1) 0%, var(--grad-2) 34%, var(--grad-3) 66%, var(--grad-4) 100%);
+    color: var(--graphite);
+    font-family: var(--font-body);
+    min-height:100vh;
+    padding: 22px 16px 70px;
+  }
+  .wrap{ max-width: 980px; margin:0 auto; }
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{ display:flex; align-items:baseline; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
+  .brand{ font-family: var(--font-display); font-weight:800; font-size:20px; letter-spacing:.01em; color:#fff; text-shadow:0 1px 4px rgba(0,0,0,0.18); }
+  .brand .sub{ font-family: var(--font-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color: rgba(255,255,255,0.85); display:block; margin-bottom:2px; }
+  .save-flag{ font-family: var(--font-mono); font-size:10.5px; color: rgba(255,255,255,0.8); text-shadow:0 1px 3px rgba(0,0,0,0.15); }
+  .filter-label{ font-family: var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color: rgba(255,255,255,0.75); margin:0 0 8px; text-shadow:0 1px 3px rgba(0,0,0,0.15); }
+
+  /* ---------- TABS ---------- */
+  nav.gates{
+    display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:18px;
+    -ms-overflow-style:none; scrollbar-width:none;
+  }
+  nav.gates::-webkit-scrollbar{ display:none; }
+  .gate{
+    flex: 0 0 auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    background: #fff;
+    border:2px solid transparent;
+    color: var(--teal-deep);
+    padding: 9px 16px;
+    border-radius: 999px;
+    cursor:pointer;
+    display:flex; align-items:center; gap:7px;
+    transition: all .15s ease;
+    white-space:nowrap;
+    box-shadow: 0 3px 10px rgba(20,60,70,0.16);
+  }
+  .gate:hover{ border-color: rgba(132,73,217,0.4); }
+  .gate.active{ border-color: var(--violet); color: var(--violet-deep); font-weight:700; }
+  .gate .dot{ width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
+
+  .page{ display:none; }
+  .page.visible{ display:block; animation: fadein .25s ease; }
+  @keyframes fadein{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:translateY(0); } }
+
+  /* ---------- RESUMEN BOARD ---------- */
+  header.board{
+    background: rgba(255,255,255,0.95); border:1px solid rgba(255,255,255,0.6); border-radius:14px;
+    padding: 22px 24px 18px; margin-bottom:22px; position:relative; overflow:hidden;
+    box-shadow: 0 14px 34px rgba(15,55,60,0.22);
+  }
+  .board-top{ display:flex; justify-content:space-between; align-items:flex-end; gap:18px; flex-wrap:wrap; position:relative; z-index:1; }
+  .board-eyebrow{ font-family: var(--font-mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color: var(--teal); margin:0 0 6px; font-weight:700; }
+  .board-title{ font-family: var(--font-display); font-weight:800; font-size:26px; margin:0; color: var(--teal-deep); }
+  .board-sub{ font-size:12.5px; color: var(--gray); margin:6px 0 0; }
+  .score-panel{ text-align:right; }
+  .score-label{ font-family: var(--font-mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; color: var(--gray); margin:0 0 2px; }
+  .score-flap{ font-family: var(--font-mono); font-weight:700; font-size:40px; line-height:1; color: var(--violet); background: var(--violet-light); border-radius:8px; padding:5px 14px; display:inline-block; min-width:100px; }
+  .score-flap .unit{ font-size:20px; opacity:.85; }
+  .board-foot{ display:flex; gap:16px; margin-top:14px; font-size:11.5px; font-family: var(--font-mono); color: var(--gray); flex-wrap:wrap; position:relative; z-index:1; }
+  .board-foot b{ color: var(--graphite); }
+  .dot{ width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:5px; vertical-align:middle; }
+
+  /* ---------- OVERVIEW ROWS (clickable, navigate to objective) ---------- */
+  .ov-row{
+    display:flex; align-items:center; gap:14px;
+    background: #fff; border:1px solid var(--line-on-glass); border-radius:10px;
+    padding: 13px 16px; margin-bottom:10px; cursor:pointer; transition: border-color .15s ease, transform .1s ease, box-shadow .15s ease;
+    box-shadow: 0 4px 14px rgba(15,55,60,0.1);
+  }
+  .ov-row:hover{ border-color: var(--violet); box-shadow: 0 6px 18px rgba(132,73,217,0.18); }
+  .ov-row:active{ transform: scale(0.997); }
+  .ov-num{ font-family: var(--font-mono); font-size:11px; color: var(--gray); flex:0 0 18px; }
+  .ov-title{ flex:1 1 auto; font-size:13.5px; line-height:1.35; min-width:0; color: var(--graphite); }
+  .ov-weight{ font-family: var(--font-mono); font-size:12px; color: var(--gray); flex:0 0 46px; text-align:center; }
+  .ov-bar{ flex:0 0 110px; height:7px; border-radius:4px; background: rgba(20,92,86,0.1); position:relative; overflow:hidden; }
+  .ov-bar i{ position:absolute; left:0; top:0; bottom:0; border-radius:4px; }
+  .ov-pct{ font-family: var(--font-mono); font-weight:700; font-size:13px; flex:0 0 48px; text-align:right; }
+  .ov-go{ flex:0 0 16px; color: var(--gray); font-size:14px; }
+
+  /* ---------- TICKET (objective page) ---------- */
+  .ticket{ display:flex; background: var(--paper); color: var(--graphite); border-radius:12px; box-shadow:0 14px 34px rgba(15,55,60,0.22); overflow:hidden; margin-bottom:20px; }
+  .ticket-main{ flex:1 1 auto; padding: 22px 22px 20px 24px; min-width:0; }
+  .ticket-stub{ flex:0 0 148px; background: var(--paper-dim); padding: 18px 16px; display:flex; flex-direction:column; justify-content:space-between; }
+  .perf{ width:0; flex:0 0 0; position:relative; }
+  .perf::before{ content:""; position:absolute; top:0; bottom:0; left:-1px; border-left:2px dashed rgba(20,92,86,0.22); }
+  .eyebrow{ font-family: var(--font-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color: var(--teal-deep); margin:0 0 8px; font-weight:600; }
+  .ticket-title{ font-family: var(--font-display); font-weight:800; font-size:19px; line-height:1.28; margin:0 0 14px; }
+  .route{ display:flex; align-items:center; gap:10px; margin:0 0 16px; }
+  .route .pt{ font-family: var(--font-mono); font-size:10px; color: rgba(35,35,35,0.55); flex:0 0 auto; }
+  .route-line{ flex:1 1 auto; height:6px; border-radius:3px; background: rgba(20,92,86,0.12); position:relative; }
+  .route-line .fill{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; background: var(--teal); transition: width .4s ease; }
+  .route-line .marker{ position:absolute; top:50%; width:13px; height:13px; border-radius:50%; background: var(--violet); border:2px solid var(--paper); transform: translate(-50%,-50%); transition: left .4s ease; }
+
+  ul.tasks{ list-style:none; margin:0 0 14px; padding:0; }
+  ul.tasks li{ display:flex; align-items:flex-start; gap:9px; font-size:13.3px; line-height:1.42; padding:7px 0; border-bottom:1px solid rgba(20,92,86,0.08); }
+  ul.tasks li:last-child{ border-bottom:none; }
+  ul.tasks input[type=checkbox]{ margin-top:2px; width:16px; height:16px; accent-color: var(--teal-deep); flex-shrink:0; cursor:pointer; }
+  ul.tasks label{ cursor:pointer; flex:1 1 auto; }
+  ul.tasks li.done label{ color: rgba(35,35,35,0.45); text-decoration: line-through; }
+  ul.tasks .kr-pct{ font-family: var(--font-mono); font-size:11.5px; font-weight:700; color: var(--teal-deep); flex:0 0 38px; text-align:right; }
+
+  .comment-list{ margin-bottom:14px; }
+  .comment{ padding:10px 0; border-bottom:1px solid rgba(20,92,86,0.08); }
+  .comment:last-child{ border-bottom:none; }
+  .comment-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:3px; }
+  .comment-author{ font-family: var(--font-mono); font-size:11px; font-weight:700; color: var(--teal-deep); }
+  .comment-date{ font-family: var(--font-mono); font-size:10px; color: var(--gray); }
+  .comment-text{ font-size:13px; line-height:1.45; margin:0; color: var(--graphite); }
+  .comment-empty{ font-size:12.5px; color: var(--gray); font-style:italic; margin:0 0 4px; }
+  .comment-form{ display:flex; flex-direction:column; gap:8px; background: var(--paper-dim); border-radius:8px; padding:12px; }
+  .comment-author-input{ font-family: var(--font-body); font-size:12.5px; border:1px solid rgba(20,92,86,0.2); border-radius:6px; padding:7px 10px; background:#fff; color: var(--graphite); }
+  .comment-form textarea{ font-family: var(--font-body); font-size:12.5px; border:1px solid rgba(20,92,86,0.2); border-radius:6px; padding:7px 10px; min-height:46px; resize:vertical; background:#fff; color: var(--graphite); }
+  .comment-btn{ align-self:flex-end; font-family: var(--font-mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase; background: var(--violet); color:#fff; border:none; padding:8px 16px; border-radius:999px; cursor:pointer; font-weight:700; transition: background .15s ease; }
+  .comment-btn:hover{ background: var(--violet-deep); }
+
+  .stub-label{ font-family: var(--font-mono); font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color: rgba(35,35,35,0.45); margin:0 0 2px; }
+  .stub-value{ font-family: var(--font-mono); font-weight:700; font-size:24px; color: var(--amber-deep); margin:0 0 12px; }
+  .stub-value.small{ font-size:18px; color: var(--violet); }
+  .stub-mid input[type=text]{ width:100%; font-family: var(--font-mono); font-size:12.5px; border:none; border-bottom:1px dashed rgba(20,92,86,0.3); background:transparent; padding:2px 0; color: var(--graphite); }
+  .stub-mid input[type=text]::placeholder{ color: rgba(35,35,35,0.35); }
+  .status-pill{ align-self:flex-start; font-family: var(--font-mono); font-size:10.5px; letter-spacing:.06em; padding:4px 10px; border-radius:20px; font-weight:700; text-transform:uppercase; }
+  .status-pending{ background: rgba(226,87,76,0.14); color: var(--coral); }
+  .status-progress{ background: rgba(232,163,61,0.2); color: var(--amber-deep); }
+  .status-done{ background: rgba(20,92,86,0.14); color: var(--teal-deep); }
+
+  /* ---------- MONTHLY TRACKER ---------- */
+  .panel{ background: var(--paper); color: var(--graphite); border-radius:12px; padding:20px 22px; box-shadow:0 14px 34px rgba(15,55,60,0.2); margin-bottom:20px; }
+  .panel h3{ font-family: var(--font-display); font-weight:800; font-size:15px; margin:0 0 4px; letter-spacing:.01em; color: var(--teal-deep); }
+  .panel .panel-sub{ font-size:11.5px; color: var(--gray); margin:0 0 14px; }
+
+  .spark-wrap{ margin-bottom: 18px; }
+  .spark-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; flex-wrap:wrap; gap:6px; }
+  .spark-title{ font-family: var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color: var(--gray); }
+  .spark-legend{ font-family: var(--font-mono); font-size:10px; color: var(--gray); }
+  .spark-legend .sw{ display:inline-block; width:10px; height:3px; margin-right:4px; vertical-align:middle; }
+
+  table.grid{ width:100%; border-collapse:collapse; font-size:11.5px; }
+  table.grid th, table.grid td{ border:1px solid rgba(20,92,86,0.12); padding:5px 4px; text-align:center; }
+  table.grid th{ background: var(--teal-deep); color:#fff; font-weight:600; font-size:10.5px; }
+  table.grid td:first-child, table.grid th:first-child{ text-align:left; padding-left:8px; }
+  table.grid td.metric-name{ text-align:left; font-size:11px; }
+  table.grid td.meta-col{ font-family: var(--font-mono); color: var(--gray); font-weight:600; background: rgba(20,92,86,0.04); }
+  table.grid input{ width:100%; border:none; background:transparent; text-align:center; font-family: var(--font-mono); font-size:11px; color: var(--graphite); padding:3px 0; }
+  table.grid input:focus{ background:#fff; outline:1px solid var(--teal); border-radius:3px; }
+  table.grid td.computed{ background: rgba(132,73,217,0.08); font-style:italic; color: var(--violet-deep); font-weight:600; }
+  table.grid tr.total-row td{ background: rgba(20,92,86,0.07); font-weight:700; border-top:2px solid rgba(20,92,86,0.25); }
+  table.grid tr.total-row td.metric-name{ color: var(--teal-deep); }
+  table.grid th.current, table.grid td.current{ background: rgba(132,73,217,0.12); }
+  table.grid th.current{ background: var(--violet); }
+  .panel + .panel{ margin-top:-4px; }
+  .panel .panel-title-row{ display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:6px; }
+  .comment-del{ background:none; border:none; color: var(--gray); cursor:pointer; font-size:13px; line-height:1; padding:2px 4px; border-radius:4px; }
+  .comment-del:hover{ color: var(--coral); background: rgba(226,87,76,0.1); }
+  .grid-wrap{ overflow-x:auto; }
+
+  .controls{ display:flex; justify-content:space-between; align-items:center; margin-top:6px; flex-wrap:wrap; gap:10px; }
+  .reset-btn{ font-family: var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; background: rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.55); color: #fff; padding:7px 14px; border-radius:999px; cursor:pointer; transition: all .2s ease; text-shadow:0 1px 2px rgba(0,0,0,0.15); }
+  .reset-btn:hover{ background: #fff; border-color: var(--coral); color: var(--coral); text-shadow:none; }
+  .pagefoot{ font-size:11px; color: rgba(255,255,255,0.8); margin-top:4px; text-shadow:0 1px 3px rgba(0,0,0,0.15); }
+
+  @media (max-width:640px){
+    .ticket{ flex-direction:column; }
+    .ticket-stub{ flex:0 0 auto; flex-direction:row; flex-wrap:wrap; gap:12px 20px; }
+    .perf{ display:none; }
+    .score-panel{ text-align:left; width:100%; }
+    .board-top{ flex-direction:column; align-items:flex-start; }
+    .score-flap{ font-size:32px; }
+    .ov-bar{ display:none; }
+  }
+  :focus-visible{ outline:2px solid var(--violet); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand"><span class="sub">Objetivos laborales · vence 31 dic 2026</span>Panel de Objetivos 2026</div>
+    <div class="save-flag" id="saveFlag"></div>
+  </div>
+
+  <p class="filter-label">Filtrar por objetivo</p>
+  <nav class="gates" id="gates"></nav>
+
+  <main id="pages"></main>
+
+  <div class="controls">
+    <p class="pagefoot">Los datos se guardan automáticamente en este chat.</p>
+    <button class="reset-btn" id="resetBtn">Reiniciar todo</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+
+  const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const DIAS = ["Día 1","Día 2","Día 3","Día 4","Día 5","Día 6","Día 7"];
+  const CURRENT_MONTH = 5; // Junio 2026
+
+  function sumKeys(vals, keys, ci){
+    let total = 0, any = false;
+    keys.forEach(k=>{
+      const v = vals[k] ? vals[k][ci] : "";
+      if(v!=="" && v!==null && v!==undefined && !isNaN(v)){ total += Number(v); any = true; }
+    });
+    return any ? total : "";
+  }
+
+  function projeccionADA(vals, ci){
+    const pax2025 = vals.pax2025[ci], ada2025 = vals.ada2025[ci], pax2026e = vals.pax2026e[ci];
+    if(pax2025==="" || ada2025==="" || pax2026e==="" || isNaN(pax2025) || isNaN(ada2025) || isNaN(pax2026e) || Number(pax2025)===0) return "";
+    const rate = Number(ada2025) / Number(pax2025);
+    return Math.round(Number(pax2026e) * rate * 1.25);
+  }
+
+  const OBJECTIVES = [
+    {
+      id:0, titulo:"Incrementar en un 25% la adquisición de ADA sobre pasajeros totales versus 2025, al 31/12/2026.",
+      peso:10, fin:"31 dic 2026", short:"ADA",
+      krs:[
+        "Implementar al menos 5 puntos de acceso a ADA en el sitio web (home, landings, etc.)",
+        "Incorporar ADA en al menos 3 campañas de email (newsletter, tienda, triggers, etc.)",
+        "Medir y optimizar el tráfico hacia ADA desde Web (clics, CTR en accesos)",
+        "Medir y optimizar el tráfico hacia ADA desde Email (CTR, tasa de interacción)"
+      ],
+      tablas:[
+        {
+          title:"Proyección ADA 2026",
+          sub:"Proyección automática = pasajeros estimados 2026 × tasa de adquisición 2025 × 1.25 (objetivo +25%). Completá las primeras 3 filas y la proyección se calcula sola.",
+          cols: MESES,
+          rows:[
+            {key:"pax2025", n:"Pasajeros 2025 (real)", u:"num"},
+            {key:"ada2025", n:"ADA 2025 (real)", u:"num"},
+            {key:"pax2026e", n:"Pasajeros estimados 2026", u:"num"},
+            {key:"proy2026", n:"Proyección ADA 2026 (objetivo)", u:"num", editable:false, calcType:"estimate", calc:projeccionADA},
+            {key:"ada2026", n:"ADA real 2026", u:"num"}
+          ],
+          chart:{type:"compare", keyA:"ada2026", keyB:"proy2026", labelA:"Real 2026", labelB:"Proyección", unit:"num"}
+        },
+        { title:"Seguimiento Web", cols: MESES, rows:[
+            {key:"web_puntos", n:"Puntos de acceso ADA activos (acum.)", u:"num", meta:5},
+            {key:"web_clics", n:"Clics a ADA desde Web (mes)", u:"num"},
+            {key:"web_ctr", n:"CTR Web accesos ADA (mes)", u:"pct"}
+          ], chart:null
+        },
+        { title:"Seguimiento Mail", cols: MESES, rows:[
+            {key:"mail_camp", n:"Campañas de email con ADA (acum.)", u:"num", meta:3},
+            {key:"mail_clics", n:"Clics a ADA desde Email (mes)", u:"num"},
+            {key:"mail_ctr", n:"CTR Email ADA (mes)", u:"pct"}
+          ], chart:null
+        }
+      ]
+    },
+    {
+      id:1, titulo:"Alcanzar una tasa de recuperación de carritos abandonados del 10% sobre el total de carritos generados en 2026, al 31/12/2026, a través de Marketing Cloud.",
+      peso:20, fin:"31 dic 2026", short:"Carritos",
+      krs:[
+        "Implementar al menos 3 optimizaciones en el journey (timing, contenido, incentivo)",
+        "Ejecutar al menos 3 tests A/B en el año (asunto, CTA, incentivo)"
+      ],
+      tablas:[
+        { title:"Seguimiento mensual", cols: MESES, rows:[
+            {key:"sesiones", n:"Sesiones (mes)", u:"num"},
+            {key:"compras", n:"Compras (mes)", u:"num"},
+            {key:"pct_rec", n:"% Recuperación (mes)", u:"pct", meta:10}
+          ], chart:{type:"single", key:"pct_rec"}
+        }
+      ]
+    },
+    {
+      id:2, titulo:"Obtener una facturación adicional de USD 150.000 mediante la monetización de las plataformas digitales al 31/12/2026.",
+      peso:20, fin:"31 dic 2026", short:"Monetización",
+      krs:[
+        "Diseñar y documentar una propuesta comercial de espacios publicitarios (formatos, ubicaciones, pricing)",
+        "Implementar al menos 5 espacios publicitarios en web, tienda y/o email",
+        "Presentar la propuesta a al menos 5 potenciales anunciantes o partners",
+        "Activar al menos 3 campañas publicitarias",
+        "Definir y monitorear métricas: impresiones, clics, CTR y revenue generado"
+      ],
+      tablas:[
+        { title:"Implementación por plataforma", sub:"Espacios publicitarios activos, acumulados por plataforma.", cols: MESES, rows:[
+            {key:"plat_ada", n:"ADA", u:"num"},
+            {key:"plat_web", n:"Web", u:"num"},
+            {key:"plat_tienda", n:"Tienda", u:"num"},
+            {key:"plat_mailing", n:"Mailing", u:"num"},
+            {key:"plat_total", n:"Total espacios implementados", u:"num", meta:5, editable:false, calcType:"total", calc:(v,ci)=>sumKeys(v,["plat_ada","plat_web","plat_tienda","plat_mailing"],ci)}
+          ], chart:null
+        },
+        { title:"Resultados de monetización", cols: MESES, rows:[
+            {key:"anunciantes", n:"Anunciantes / partners contactados (acum.)", u:"num", meta:5},
+            {key:"camp_activas", n:"Campañas publicitarias activas (mes)", u:"num"},
+            {key:"impresiones", n:"Impresiones (mes)", u:"num"},
+            {key:"clics", n:"Clics (mes)", u:"num"},
+            {key:"ctr", n:"CTR (mes)", u:"pct"},
+            {key:"revenue_mes", n:"Revenue generado (mes)", u:"usd"},
+            {key:"revenue_acum", n:"Revenue acumulado", u:"usd", meta:150000}
+          ], chart:{type:"single", key:"revenue_acum"}
+        }
+      ]
+    },
+    {
+      id:3, titulo:"Obtener una facturación de USD 550.000 mediante la participación en eventos de la CACE al 31/12/2026.",
+      peso:30, fin:"31 dic 2026", short:"CACE",
+      krs:[
+        "Activar al menos 16 campañas por mailing para incentivar la compra de usuarios recurrentes",
+        "Implementar al menos 4 journeys automatizados durante el evento para venta cruzada",
+        "Implementar al menos 4 accesos en la web para derivar tráfico calificado a la landing del evento"
+      ],
+      metaTotal: 550000,
+      tablas:[
+        { title:"Seguimiento general", cols: MESES, rows:[
+            {key:"mailing_camp", n:"Campañas de mailing activadas (acum.)", u:"num", meta:16},
+            {key:"journeys", n:"Journeys automatizados activos (acum.)", u:"num", meta:4},
+            {key:"accesos_web", n:"Accesos web implementados (acum.)", u:"num", meta:4}
+          ], chart:null
+        },
+        { title:"Hot Sale — facturación por línea de negocio y día", sub:"7 días de evento. Cargá el ingreso de cada línea por día.", cols: DIAS, rows:[
+            {key:"hs_parking", n:"Parking", u:"usd"},
+            {key:"hs_traslados", n:"Traslados", u:"usd"},
+            {key:"hs_fastpass", n:"Fast Pass", u:"usd"},
+            {key:"hs_salavip", n:"Sala VIP", u:"usd"},
+            {key:"hs_retail", n:"Retail", u:"usd"},
+            {key:"hs_otros", n:"Otros", u:"usd"},
+            {key:"hs_total", n:"Total Hot Sale", u:"usd", editable:false, calcType:"total", countsToTotal:true,
+              calc:(v,ci)=>sumKeys(v,["hs_parking","hs_traslados","hs_fastpass","hs_salavip","hs_retail","hs_otros"],ci)}
+          ], chart:{type:"multi", keys:["hs_parking","hs_traslados","hs_fastpass","hs_salavip","hs_retail","hs_otros"], unit:"usd"}
+        },
+        { title:"Cyber Monday — facturación por línea de negocio y día", sub:"7 días de evento. Cargá el ingreso de cada línea por día.", cols: DIAS, rows:[
+            {key:"cm_parking", n:"Parking", u:"usd"},
+            {key:"cm_traslados", n:"Traslados", u:"usd"},
+            {key:"cm_fastpass", n:"Fast Pass", u:"usd"},
+            {key:"cm_salavip", n:"Sala VIP", u:"usd"},
+            {key:"cm_retail", n:"Retail", u:"usd"},
+            {key:"cm_otros", n:"Otros", u:"usd"},
+            {key:"cm_total", n:"Total Cyber Monday", u:"usd", editable:false, calcType:"total", countsToTotal:true,
+              calc:(v,ci)=>sumKeys(v,["cm_parking","cm_traslados","cm_fastpass","cm_salavip","cm_retail","cm_otros"],ci)}
+          ], chart:{type:"multi", keys:["cm_parking","cm_traslados","cm_fastpass","cm_salavip","cm_retail","cm_otros"], unit:"usd"}
+        }
+      ]
+    },
+    {
+      id:4, titulo:"Incrementar en un 20% la tasa de conversión anual de las comunicaciones de tienda online vía email en 2026 respecto al desempeño de 2025.",
+      peso:20, fin:"31 dic 2026", short:"Conversión",
+      krs:[
+        "Definir e implementar un roadmap anual de campañas y automatizaciones orientadas a conversión",
+        "Implementar al menos 3 journeys automatizados enfocados en generación de ingresos",
+        "Ejecutar al menos 2 tests A/B bimestrales sobre asuntos, contenido y CTAs"
+      ],
+      tablas:[
+        { title:"Seguimiento mensual", cols: MESES, rows:[
+            {key:"tasa_mes", n:"Tasa de conversión email → compra (mes)", u:"pct"},
+            {key:"tasa_acum", n:"Tasa de conversión acumulada vs. 2025", u:"pct", meta:20},
+            {key:"journeys_ing", n:"Journeys de ingresos activos (acum.)", u:"num", meta:3},
+            {key:"tests_ab", n:"Tests A/B ejecutados (acum.)", u:"num"}
+          ], chart:{type:"single", key:"tasa_acum"}
+        }
+      ]
+    }
+  ];
+
+  const STORAGE_KEY = "objetivos-dashboard-v3";
+  let state = {};
+  let activeTab = "resumen";
+  let displayedScore = 0;
+
+  function defaultState(){
+    const s = { checks:{}, comments:{}, starts:{}, tables:{}, updatedAt:"" };
+    OBJECTIVES.forEach(o=>{
+      s.checks[o.id] = o.krs.map(()=>0);
+      s.starts[o.id] = "";
+      s.comments[o.id] = [];
+      s.tables[o.id] = {};
+      o.tablas.forEach((t,ti)=>{
+        s.tables[o.id][ti] = {};
+        t.rows.forEach(r=>{
+          if(r.editable !== false) s.tables[o.id][ti][r.key] = Array(t.cols.length).fill("");
+        });
+      });
+    });
+    s.comments[1] = [
+      {autor:"Valentina (jefa)", fecha:"02 jun", texto:"¿Cómo viene el test de incentivo en el journey? Lo necesitamos para el cierre de mes."},
+      {autor:"Vos", fecha:"03 jun", texto:"Arrancamos el test A/B de asunto esta semana, en ~10 días tenemos resultados."}
+    ];
+    return s;
+  }
+
+  async function loadState(){
+    try{
+      const res = await window.storage.get(STORAGE_KEY, false);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        const merged = defaultState();
+        OBJECTIVES.forEach(o=>{
+          if(parsed.checks && parsed.checks[o.id]) merged.checks[o.id] = o.krs.map((_,i)=> Number(parsed.checks[o.id][i])||0);
+          if(parsed.starts && typeof parsed.starts[o.id]==="string") merged.starts[o.id]=parsed.starts[o.id];
+          if(parsed.comments && Array.isArray(parsed.comments[o.id])) merged.comments[o.id] = parsed.comments[o.id];
+          o.tablas.forEach((t,ti)=>{
+            const savedTable = parsed.tables && parsed.tables[o.id] ? parsed.tables[o.id][ti] : null;
+            t.rows.forEach(r=>{
+              if(r.editable === false) return;
+              const savedRow = savedTable ? savedTable[r.key] : null;
+              merged.tables[o.id][ti][r.key] = Array.isArray(savedRow)
+                ? Array.from({length:t.cols.length}, (_,d)=> savedRow[d]!==undefined ? savedRow[d] : "")
+                : Array(t.cols.length).fill("");
+            });
+          });
+        });
+        merged.updatedAt = parsed.updatedAt || "";
+        return merged;
+      }
+    }catch(e){ console.log("Sin datos previos, se inicia desde cero.", e); }
+    return defaultState();
+  }
+
+  let saveTimer=null;
+  function flag(text){
+    const f = document.getElementById("saveFlag");
+    f.textContent = text;
+    if(text === "Guardado"){
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(()=>{ f.textContent=""; }, 1500);
+    }
+  }
+  async function saveState(){
+    state.updatedAt = new Date().toLocaleString("es-AR", {dateStyle:"short", timeStyle:"short"});
+    flag("Guardando…");
+    try{
+      const ok = await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
+      flag(ok ? "Guardado" : "No se pudo guardar");
+    }catch(e){ flag("No se pudo guardar"); console.error(e); }
+  }
+
+  function progressOf(obj){
+    const checks = state.checks[obj.id] || [];
+    if(obj.krs.length===0) return 0;
+    const sum = checks.reduce((a,b)=>a+Number(b||0),0);
+    return Math.round(sum/obj.krs.length);
+  }
+  function statusOf(pct){
+    if(pct>=100) return {cls:"status-done", label:"Completado", color:"var(--teal)"};
+    if(pct>0) return {cls:"status-progress", label:"En curso", color:"var(--amber)"};
+    return {cls:"status-pending", label:"Pendiente", color:"var(--coral)"};
+  }
+  function overallScore(){
+    let t=0;
+    OBJECTIVES.forEach(o=>{ t += (o.peso/100)*progressOf(o); });
+    return Math.round(t*10)/10;
+  }
+  function fmtUnit(v,u){
+    if(v===null || v==="" || v===undefined || isNaN(v)) return "—";
+    const n = Number(v);
+    if(u==="pct") return n.toLocaleString("es-AR",{maximumFractionDigits:1})+"%";
+    if(u==="usd") return "USD "+n.toLocaleString("es-AR",{maximumFractionDigits:0});
+    return n.toLocaleString("es-AR",{maximumFractionDigits:0});
+  }
+
+  function animateScore(target){
+    const el = document.getElementById("scoreFlap");
+    if(!el) return;
+    const start = displayedScore, t0 = performance.now(), dur=500;
+    function tick(now){
+      const p = Math.min(1,(now-t0)/dur);
+      const eased = 1-Math.pow(1-p,3);
+      const val = start+(target-start)*eased;
+      el.innerHTML = val.toFixed(1).replace(/\.0$/,"")+'<span class="unit">%</span>';
+      if(p<1) requestAnimationFrame(tick); else displayedScore = target;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- NAV ----------
+  function renderNav(){
+    const nav = document.getElementById("gates");
+    nav.innerHTML = "";
+    const items = [{id:"resumen", label:"Resumen"}].concat(
+      OBJECTIVES.map(o=>({id:"obj-"+o.id, label:"Obj "+(o.id+1)+" · "+o.short, objId:o.id}))
+    );
+    items.forEach(it=>{
+      const btn = document.createElement("button");
+      btn.className = "gate" + (activeTab===it.id ? " active":"");
+      let dotHtml = "";
+      if(it.objId!==undefined){
+        const ob = OBJECTIVES[it.objId];
+        const st = statusOf(progressOf(ob));
+        dotHtml = `<span class="dot" style="background:${st.color}"></span>`;
+      }
+      btn.innerHTML = dotHtml + it.label;
+      btn.addEventListener("click", ()=>{ activeTab = it.id; renderAll(); });
+      nav.appendChild(btn);
+    });
+  }
+
+  // ---------- RESUMEN PAGE ----------
+  function renderResumen(){
+    const done = OBJECTIVES.filter(o=>progressOf(o)>=100).length;
+    const inprog = OBJECTIVES.filter(o=>{const p=progressOf(o); return p>0 && p<100;}).length;
+    const pending = OBJECTIVES.length-done-inprog;
+
+    const rows = OBJECTIVES.map(o=>{
+      const pct = progressOf(o);
+      const st = statusOf(pct);
+      return `
+        <div class="ov-row" data-goto="obj-${o.id}">
+          <span class="ov-num">0${o.id+1}</span>
+          <span class="ov-title">${o.titulo}</span>
+          <span class="ov-weight">${o.peso}%</span>
+          <span class="ov-bar"><i style="width:${pct}%; background:${st.color}"></i></span>
+          <span class="ov-pct" style="color:${st.color}">${pct}%</span>
+          <span class="ov-go">›</span>
+        </div>`;
+    }).join("");
+
+    return `
+      <header class="board">
+        <div class="board-top">
+          <div>
+            <p class="board-eyebrow">Superar las expectativas de nuestros clientes</p>
+            <h1 class="board-title">Avance 2026</h1>
+            <p class="board-sub">Tocá un objetivo para ver su checklist, el seguimiento mensual y los comentarios.</p>
+          </div>
+          <div class="score-panel">
+            <p class="score-label">Avance total ponderado</p>
+            <div class="score-flap" id="scoreFlap">0<span class="unit">%</span></div>
+          </div>
+        </div>
+        <div class="board-foot">
+          <span><span class="dot" style="background:var(--teal)"></span><b>${done}</b> completados</span>
+          <span><span class="dot" style="background:var(--amber)"></span><b>${inprog}</b> en curso</span>
+          <span><span class="dot" style="background:var(--coral)"></span><b>${pending}</b> pendientes</span>
+          <span style="margin-left:auto; opacity:.7;">${state.updatedAt ? "Última actualización: "+state.updatedAt : ""}</span>
+        </div>
+      </header>
+      ${rows}
+    `;
+  }
+
+  // ---------- CHARTS ----------
+  function chartFrame(W,H,padL,padR,padT,padB){ return {W,H,padL,padR,padT,padB}; }
+
+  function sparkline(values, meta, unit, cols){
+    cols = cols || MESES;
+    const W=640,H=130,padL=34,padR=14,padT=14,padB=22;
+    const nums = values.map(v=> (v===""||v===undefined||v===null||isNaN(v)) ? null : Number(v));
+    const present = nums.filter(v=>v!==null);
+    if(present.length===0){
+      return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg">
+        <text x="${W/2}" y="${H/2}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" fill="rgba(35,35,35,0.4)">Sin datos cargados todavía</text>
+      </svg>`;
+    }
+    let max = Math.max(...present, meta||0);
+    let min = Math.min(0, ...present);
+    if(max===min) max = min+1;
+    const x = i => padL + (i/(cols.length-1))*(W-padL-padR);
+    const y = v => padT + (1 - (v-min)/(max-min))*(H-padT-padB);
+
+    let segs = [], cur = [];
+    nums.forEach((v,i)=>{
+      if(v===null){ if(cur.length){segs.push(cur); cur=[];} }
+      else cur.push([i,v]);
+    });
+    if(cur.length) segs.push(cur);
+    const pathD = segs.map(seg => "M"+seg.map(([i,v])=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" L")).join(" ");
+    const dots = nums.map((v,i)=> v===null ? "" : `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" fill="#2F8F8B"/>`).join("");
+    const metaLine = (meta!==null && meta!==undefined) ? `<line x1="${padL}" y1="${y(meta).toFixed(1)}" x2="${W-padR}" y2="${y(meta).toFixed(1)}" stroke="#C97F1F" stroke-width="1.4" stroke-dasharray="5,4"/>` : "";
+    const labels = cols.map((m,i)=> `<text x="${x(i).toFixed(1)}" y="${H-6}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="rgba(35,35,35,0.45)">${m}</text>`).join("");
+    const gridY = [min, (min+max)/2, max].map(v=> `<line x1="${padL}" y1="${y(v).toFixed(1)}" x2="${W-padR}" y2="${y(v).toFixed(1)}" stroke="rgba(35,35,35,0.08)" stroke-width="1"/><text x="${padL-5}" y="${y(v).toFixed(1)+3}" text-anchor="end" font-family="ui-monospace,monospace" font-size="9" fill="rgba(35,35,35,0.4)">${fmtUnit(v,unit)}</text>`).join("");
+
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg">
+      ${gridY}${metaLine}
+      <path d="${pathD}" fill="none" stroke="#2F8F8B" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}${labels}
+    </svg>`;
+  }
+
+  function multiSeriesChart(series, cols, unit){
+    // series: [{label, color, values, dashed?}]
+    const W=640,H=150,padL=40,padR=14,padT=14,padB=22;
+    const allNums = [];
+    series.forEach(s=> s.values.forEach(v=>{ if(v!==""&&v!==null&&v!==undefined&&!isNaN(v)) allNums.push(Number(v)); }));
+    if(allNums.length===0){
+      return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg">
+        <text x="${W/2}" y="${H/2}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" fill="rgba(35,35,35,0.4)">Sin datos cargados todavía</text>
+      </svg>`;
+    }
+    let max = Math.max(...allNums), min = Math.min(0, ...allNums);
+    if(max===min) max = min+1;
+    const x = i => padL + (i/(cols.length-1))*(W-padL-padR);
+    const y = v => padT + (1 - (v-min)/(max-min))*(H-padT-padB);
+
+    const paths = series.map(s=>{
+      const nums = s.values.map(v=> (v===""||v===undefined||v===null||isNaN(v)) ? null : Number(v));
+      let segs=[], cur=[];
+      nums.forEach((v,i)=>{ if(v===null){ if(cur.length){segs.push(cur); cur=[];} } else cur.push([i,v]); });
+      if(cur.length) segs.push(cur);
+      const d = segs.map(seg => "M"+seg.map(([i,v])=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" L")).join(" ");
+      const dash = s.dashed ? `stroke-dasharray="5,4"` : "";
+      return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" ${dash}/>`;
+    }).join("");
+
+    const labels = cols.map((m,i)=> `<text x="${x(i).toFixed(1)}" y="${H-6}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="rgba(35,35,35,0.45)">${m}</text>`).join("");
+    const gridY = [min, (min+max)/2, max].map(v=> `<line x1="${padL}" y1="${y(v).toFixed(1)}" x2="${W-padR}" y2="${y(v).toFixed(1)}" stroke="rgba(35,35,35,0.08)" stroke-width="1"/><text x="${padL-5}" y="${y(v).toFixed(1)+3}" text-anchor="end" font-family="ui-monospace,monospace" font-size="9" fill="rgba(35,35,35,0.4)">${fmtUnit(v,unit)}</text>`).join("");
+
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg">${gridY}${paths}${labels}</svg>`;
+  }
+
+  const MULTI_PALETTE = ["#2F8F8B","#8449D9","#E8A33D","#E2574C","#3E73A6","#1F2B2A"];
+
+  // ---------- TABLE RESOLUTION ----------
+  function resolveTable(o, ti, table){
+    const stored = state.tables[o.id][ti];
+    const vals = {};
+    table.rows.forEach(r=>{
+      if(r.editable !== false) vals[r.key] = (stored[r.key] || Array(table.cols.length).fill("")).slice();
+    });
+    table.rows.forEach(r=>{
+      if(r.editable === false){
+        vals[r.key] = table.cols.map((_,ci)=> r.calc ? r.calc(vals, ci) : "");
+      }
+    });
+    return vals;
+  }
+
+  function grandTotal(o, resolved){
+    let sum = 0, any = false;
+    o.tablas.forEach((t,ti)=>{
+      t.rows.forEach(r=>{
+        if(r.countsToTotal){
+          (resolved[ti][r.key]||[]).forEach(v=>{ if(v!=="" && !isNaN(v)){ sum += Number(v); any = true; } });
+        }
+      });
+    });
+    return any ? sum : null;
+  }
+
+  // ---------- TABLE RENDER ----------
+  function renderTableBlock(o, ti, table, resolved){
+    const isMonthly = table.cols === MESES;
+    const head = `<tr><th>Métrica</th><th>Meta</th>${table.cols.map((c,i)=>`<th class="${isMonthly && i===CURRENT_MONTH ? 'current':''}">${c}</th>`).join("")}</tr>`;
+    const rowsHtml = table.rows.map(r=>{
+      const vals = resolved[r.key];
+      const cells = vals.map((v,ci)=>{
+        const curCls = isMonthly && ci===CURRENT_MONTH ? "current":"";
+        if(r.editable === false){
+          return `<td class="${curCls} computed">${v===""?"—":fmtUnit(v,r.u)}</td>`;
+        }
+        return `<td class="${curCls}"><input type="text" inputmode="decimal" data-tbl-obj="${o.id}" data-tbl-idx="${ti}" data-row-key="${r.key}" data-col-idx="${ci}" value="${v}"></td>`;
+      }).join("");
+      const trCls = r.calcType==="total" ? "total-row" : "";
+      return `<tr class="${trCls}"><td class="metric-name">${r.n}</td><td class="meta-col">${r.meta!==null && r.meta!==undefined ? fmtUnit(r.meta,r.u) : "—"}</td>${cells}</tr>`;
+    }).join("");
+
+    let chartHtml = "";
+    if(table.chart){
+      const ch = table.chart;
+      if(ch.type === "single"){
+        const rowDef = table.rows.find(r=>r.key===ch.key);
+        chartHtml = `
+          <div class="spark-wrap">
+            <div class="spark-head">
+              <span class="spark-title">${rowDef.n}</span>
+              <span class="spark-legend"><span class="sw" style="background:#2F8F8B"></span>Real ${rowDef.meta!=null ? `&nbsp;&nbsp;<span class="sw" style="background:#C97F1F"></span>Meta (${fmtUnit(rowDef.meta,rowDef.u)})`:""}</span>
+            </div>
+            ${sparkline(resolved[ch.key], rowDef.meta, rowDef.u, table.cols)}
+          </div>`;
+      } else if(ch.type === "compare"){
+        const series = [
+          {label:ch.labelA, color:"#2F8F8B", values:resolved[ch.keyA]},
+          {label:ch.labelB, color:"#8449D9", dashed:true, values:resolved[ch.keyB]}
+        ];
+        chartHtml = `
+          <div class="spark-wrap">
+            <div class="spark-head">
+              <span class="spark-title">${ch.labelA} vs. ${ch.labelB}</span>
+              <span class="spark-legend"><span class="sw" style="background:#2F8F8B"></span>${ch.labelA}&nbsp;&nbsp;<span class="sw" style="background:#8449D9"></span>${ch.labelB}</span>
+            </div>
+            ${multiSeriesChart(series, table.cols, ch.unit)}
+          </div>`;
+      } else if(ch.type === "multi"){
+        const series = ch.keys.map((k,i)=>{
+          const rowDef = table.rows.find(r=>r.key===k);
+          return {label:rowDef.n, color:MULTI_PALETTE[i%MULTI_PALETTE.length], values:resolved[k]};
+        });
+        const legend = series.map(s=>`<span class="sw" style="background:${s.color}"></span>${s.label}`).join("&nbsp;&nbsp;");
+        chartHtml = `
+          <div class="spark-wrap">
+            <div class="spark-head"><span class="spark-title">Por línea de negocio y día</span></div>
+            <div class="spark-legend" style="margin-bottom:6px;">${legend}</div>
+            ${multiSeriesChart(series, table.cols, ch.unit)}
+          </div>`;
+      }
+    }
+
+    return `
+      <div class="panel">
+        <div class="panel-title-row"><h3>${table.title}</h3></div>
+        ${table.sub ? `<p class="panel-sub">${table.sub}</p>` : ""}
+        ${chartHtml}
+        <div class="grid-wrap">
+          <table class="grid">${head}${rowsHtml}</table>
+        </div>
+      </div>`;
+  }
+
+  // ---------- OBJECTIVE PAGE ----------
+  function renderObjective(o){
+    const pct = progressOf(o);
+    const st = statusOf(pct);
+    const start = state.starts[o.id]||"";
+
+    const krHtml = o.krs.map((kr,i)=>{
+      const pctK = Number(state.checks[o.id][i]||0);
+      return `
+        <li class="${pctK>=100?'done':''}">
+          <input type="checkbox" id="kr-${o.id}-${i}" data-kr-obj="${o.id}" data-kr-idx="${i}" ${pctK>=100?"checked":""}>
+          <label for="kr-${o.id}-${i}">${kr}</label>
+          <span class="kr-pct">${pctK}%</span>
+        </li>`;
+    }).join("");
+
+    const ticket = `
+      <section class="ticket">
+        <div class="ticket-main">
+          <p class="eyebrow">Desafío estratégico · Objetivo ${o.id+1} de ${OBJECTIVES.length}</p>
+          <h2 class="ticket-title">${o.titulo}</h2>
+          <div class="route">
+            <span class="pt">${start?start:"inicio"}</span>
+            <div class="route-line"><div class="fill" style="width:${pct}%"></div><div class="marker" style="left:${pct}%"></div></div>
+            <span class="pt">${o.fin}</span>
+          </div>
+          <ul class="tasks">${krHtml}</ul>
+        </div>
+        <div class="perf"></div>
+        <div class="ticket-stub">
+          <div>
+            <p class="stub-label">Peso</p><p class="stub-value">${o.peso}%</p>
+            <p class="stub-label">Avance</p><p class="stub-value small">${pct}%</p>
+          </div>
+          <div class="stub-mid">
+            <p class="stub-label">Inicio</p>
+            <input type="text" data-start="${o.id}" placeholder="dd mmm" value="${start}">
+            <p class="stub-label" style="margin-top:10px;">Cierre</p>
+            <p style="font-family:var(--font-mono); font-size:13px; margin:0;">${o.fin}</p>
+          </div>
+          <span class="status-pill ${st.cls}">${st.label}</span>
+        </div>
+      </section>`;
+
+    const resolved = o.tablas.map((t,ti)=> resolveTable(o, ti, t));
+    let totalBadge = "";
+    if(o.metaTotal){
+      const gt = grandTotal(o, resolved);
+      totalBadge = `
+        <div class="panel" style="padding:14px 22px;">
+          <div class="panel-title-row">
+            <h3 style="margin:0;">Facturación acumulada (Hot Sale + Cyber Monday)</h3>
+            <span class="stub-value small" style="margin:0;">${gt===null?"—":fmtUnit(gt,"usd")} <span style="font-size:11px; color:var(--gray); font-weight:400;">/ meta ${fmtUnit(o.metaTotal,"usd")}</span></span>
+          </div>
+        </div>`;
+    }
+    const tablasHtml = o.tablas.map((t,ti)=> renderTableBlock(o, ti, t, resolved[ti])).join("");
+
+    const comments = (state.comments[o.id]||[]);
+    const commentsHtml = comments.length ? comments.map((c,ci)=>`
+      <div class="comment">
+        <div class="comment-head">
+          <span class="comment-author">${c.autor}</span>
+          <span style="display:flex; align-items:center; gap:8px;">
+            <span class="comment-date">${c.fecha}</span>
+            <button class="comment-del" data-cm-del-obj="${o.id}" data-cm-del-idx="${ci}" title="Eliminar comentario">✕</button>
+          </span>
+        </div>
+        <p class="comment-text">${c.texto}</p>
+      </div>`).join("") : `<p class="comment-empty">Todavía no hay comentarios en este objetivo.</p>`;
+
+    const commentsPanel = `
+      <div class="panel">
+        <h3>Comentarios</h3>
+        <p class="panel-sub">Espacio para que vos, tu jefa o tus compañeras dejen contexto sobre el avance.</p>
+        <div class="comment-list">${commentsHtml}</div>
+        <div class="comment-form">
+          <input type="text" data-cm-author="${o.id}" placeholder="Tu nombre" class="comment-author-input">
+          <textarea data-cm-text="${o.id}" placeholder="Escribí un comentario..."></textarea>
+          <button class="comment-btn" data-cm-submit="${o.id}">Agregar comentario</button>
+        </div>
+      </div>`;
+
+    return ticket + totalBadge + tablasHtml + commentsPanel;
+  }
+
+  // ---------- MASTER RENDER ----------
+  function renderAll(){
+    renderNav();
+    const pages = document.getElementById("pages");
+    pages.innerHTML = "";
+
+    const resumenDiv = document.createElement("div");
+    resumenDiv.className = "page" + (activeTab==="resumen" ? " visible":"");
+    resumenDiv.id = "page-resumen";
+    resumenDiv.innerHTML = renderResumen();
+    pages.appendChild(resumenDiv);
+
+    OBJECTIVES.forEach(o=>{
+      const div = document.createElement("div");
+      div.className = "page" + (activeTab==="obj-"+o.id ? " visible":"");
+      div.id = "page-obj-"+o.id;
+      div.innerHTML = renderObjective(o);
+      pages.appendChild(div);
+    });
+
+    animateScore(overallScore());
+    attachHandlers();
+  }
+
+  function attachHandlers(){
+    document.querySelectorAll('.ov-row').forEach(row=>{
+      row.addEventListener('click', ()=>{ activeTab = row.dataset.goto; renderAll(); });
+    });
+    document.querySelectorAll('input[data-kr-obj]').forEach(cb=>{
+      cb.addEventListener('change', e=>{
+        const objId = e.target.dataset.krObj, idx = Number(e.target.dataset.krIdx);
+        state.checks[objId][idx] = e.target.checked ? 100 : 0;
+        renderAll(); saveState();
+      });
+    });
+    let startTimer=null;
+    document.querySelectorAll('input[data-start]').forEach(inp=>{
+      inp.addEventListener('input', e=>{
+        state.starts[e.target.dataset.start] = e.target.value;
+        clearTimeout(startTimer); startTimer = setTimeout(()=>{ saveState(); renderAll(); }, 600);
+      });
+    });
+    let tblTimer=null;
+    document.querySelectorAll('input[data-tbl-obj]').forEach(inp=>{
+      inp.addEventListener('input', e=>{
+        const objId = e.target.dataset.tblObj, ti = e.target.dataset.tblIdx, key = e.target.dataset.rowKey, ci = Number(e.target.dataset.colIdx);
+        state.tables[objId][ti][key][ci] = e.target.value;
+        clearTimeout(tblTimer);
+        tblTimer = setTimeout(()=>{ saveState(); renderAll(); }, 500);
+      });
+    });
+    document.querySelectorAll('button[data-cm-submit]').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        const objId = e.target.dataset.cmSubmit;
+        const wrap = e.target.closest('.comment-form');
+        const authorInp = wrap.querySelector('[data-cm-author]');
+        const textArea = wrap.querySelector('[data-cm-text]');
+        const texto = textArea.value.trim();
+        if(!texto) return;
+        const autor = authorInp.value.trim() || "Sin nombre";
+        const mesesCorto = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+        const hoy = new Date();
+        const fecha = String(hoy.getDate()).padStart(2,"0") + " " + mesesCorto[hoy.getMonth()];
+        state.comments[objId] = state.comments[objId] || [];
+        state.comments[objId].unshift({autor, fecha, texto});
+        renderAll(); saveState();
+        notifyNewComment(objId, autor, texto);
+      });
+    });
+    document.querySelectorAll('button[data-cm-del-obj]').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        const objId = e.target.dataset.cmDelObj, idx = Number(e.target.dataset.cmDelIdx);
+        if(!confirm("¿Eliminar este comentario?")) return;
+        state.comments[objId].splice(idx,1);
+        renderAll(); saveState();
+      });
+    });
+  }
+
+  // Notificación por mail: pendiente de conectar a un backend real (Google Apps Script)
+  // cuando migremos la carga de datos a Google Sheets. Por ahora solo deja constancia
+  // en consola para no generar una falsa expectativa de envío de mail real.
+  function notifyNewComment(objId, autor, texto){
+    console.log(`[pendiente de conectar] Notificar a iamaro@aeropuertosargentina.com: nuevo comentario de ${autor} en objetivo ${Number(objId)+1}: "${texto}"`);
+  }
+
+  async function init(){
+    state = await loadState();
+    renderAll();
+    document.getElementById("resetBtn").addEventListener("click", async ()=>{
+      if(!confirm("Esto borra todo: KRs, comentarios y métricas mensuales cargadas. ¿Continuar?")) return;
+      state = defaultState();
+      renderAll();
+      await saveState();
+    });
+  }
+  init();
+})();
+</script>
+</body>
+</html>
