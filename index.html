@@ -219,8 +219,8 @@
   <main id="pages"></main>
 
   <div class="controls">
-    <p class="pagefoot">Los datos se guardan automáticamente en este chat.</p>
-    <button class="reset-btn" id="resetBtn">Reiniciar todo</button>
+    <p class="pagefoot">Conectado a Google Sheets · se actualiza solo cada 45s.</p>
+    <button class="reset-btn" id="resetBtn">Actualizar ahora</button>
   </div>
 
 </div>
@@ -228,9 +228,18 @@
 <script>
 (function(){
 
+  // ======================================================================
+  // ⚠️ PASO OBLIGATORIO: pegá aquí la URL de tu Web App de Google Apps Script
+  // (la que termina en /exec). La conseguís después de hacer "Implementar"
+  // en el editor de Apps Script. Mientras diga "PEGAR_ACA..." el dashboard
+  // no va a poder leer ni guardar nada.
+  // ======================================================================
+  const API_URL = "PEGAR_ACA_LA_URL_DEL_WEB_APP";
+
   const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const DIAS = ["Día 1","Día 2","Día 3","Día 4","Día 5","Día 6","Día 7"];
   const CURRENT_MONTH = 5; // Junio 2026
+  const REFRESH_MS = 45000; // re-consulta el Sheet cada 45s para ver cambios de otras personas
 
   function sumKeys(vals, keys, ci){
     let total = 0, any = false;
@@ -393,13 +402,13 @@
     }
   ];
 
-  const STORAGE_KEY = "objetivos-dashboard-v3";
-  let state = {};
+  let state = null;
   let activeTab = "resumen";
   let displayedScore = 0;
+  let lastError = "";
 
   function defaultState(){
-    const s = { checks:{}, comments:{}, starts:{}, tables:{}, updatedAt:"" };
+    const s = { checks:{}, comments:{}, starts:{}, tables:{} };
     OBJECTIVES.forEach(o=>{
       s.checks[o.id] = o.krs.map(()=>0);
       s.starts[o.id] = "";
@@ -412,57 +421,76 @@
         });
       });
     });
-    s.comments[1] = [
-      {autor:"Valentina (jefa)", fecha:"02 jun", texto:"¿Cómo viene el test de incentivo en el journey? Lo necesitamos para el cierre de mes."},
-      {autor:"Vos", fecha:"03 jun", texto:"Arrancamos el test A/B de asunto esta semana, en ~10 días tenemos resultados."}
-    ];
     return s;
   }
 
-  async function loadState(){
-    try{
-      const res = await window.storage.get(STORAGE_KEY, false);
-      if(res && res.value){
-        const parsed = JSON.parse(res.value);
-        const merged = defaultState();
-        OBJECTIVES.forEach(o=>{
-          if(parsed.checks && parsed.checks[o.id]) merged.checks[o.id] = o.krs.map((_,i)=> Number(parsed.checks[o.id][i])||0);
-          if(parsed.starts && typeof parsed.starts[o.id]==="string") merged.starts[o.id]=parsed.starts[o.id];
-          if(parsed.comments && Array.isArray(parsed.comments[o.id])) merged.comments[o.id] = parsed.comments[o.id];
-          o.tablas.forEach((t,ti)=>{
-            const savedTable = parsed.tables && parsed.tables[o.id] ? parsed.tables[o.id][ti] : null;
-            t.rows.forEach(r=>{
-              if(r.editable === false) return;
-              const savedRow = savedTable ? savedTable[r.key] : null;
-              merged.tables[o.id][ti][r.key] = Array.isArray(savedRow)
-                ? Array.from({length:t.cols.length}, (_,d)=> savedRow[d]!==undefined ? savedRow[d] : "")
-                : Array(t.cols.length).fill("");
-            });
-          });
-        });
-        merged.updatedAt = parsed.updatedAt || "";
-        return merged;
-      }
-    }catch(e){ console.log("Sin datos previos, se inicia desde cero.", e); }
-    return defaultState();
+  // ---------- API ----------
+  async function apiGet(){
+    const res = await fetch(API_URL + (API_URL.includes("?") ? "&" : "?") + "t=" + Date.now());
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    return await res.json();
+  }
+  async function apiPost(payload){
+    const res = await fetch(API_URL, { method:"POST", body: JSON.stringify(payload) });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    return await res.json();
   }
 
-  let saveTimer=null;
-  function flag(text){
+  function buildStateFromApi(data){
+    const s = defaultState();
+    const mensualById = {};
+    (data.mensual||[]).forEach(r=> mensualById[r.ID] = r);
+    const eventosById = {};
+    (data.eventos||[]).forEach(r=> eventosById[r.ID] = r);
+    const lookup = Object.assign({}, mensualById, eventosById);
+
+    OBJECTIVES.forEach(o=>{
+      o.krs.forEach((_,i)=>{
+        const row = (data.krs||[]).find(r=> r.ID === `kr-${o.id}-${i}`);
+        s.checks[o.id][i] = row ? (Number(row["Avance %"]) || 0) : 0;
+      });
+      o.tablas.forEach((t,ti)=>{
+        t.rows.forEach(r=>{
+          if(r.editable === false) return;
+          const row = lookup[`${o.id}-${r.key}`];
+          s.tables[o.id][ti][r.key] = t.cols.map(c => (row && row[c]!==undefined && row[c]!=="") ? row[c] : "");
+        });
+      });
+      const cfg = (data.config||[]).find(r=> Number(r.Objetivo) === o.id+1);
+      s.starts[o.id] = cfg ? (cfg.Inicio || "") : "";
+
+      const comments = (data.comentarios||[]).filter(r=> Number(r.Objetivo) === o.id+1).map(r=>({
+        id: r.ID, autor: r.Autor, fecha: r.Fecha, texto: r.Texto
+      }));
+      comments.sort((a,b)=>{
+        const ta = Number(String(a.id).replace("c-","")) || 0;
+        const tb = Number(String(b.id).replace("c-","")) || 0;
+        return tb - ta;
+      });
+      s.comments[o.id] = comments;
+    });
+    return s;
+  }
+
+  function flag(text, isError){
     const f = document.getElementById("saveFlag");
     f.textContent = text;
+    f.style.color = isError ? "#FFD1CC" : "";
     if(text === "Guardado"){
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(()=>{ f.textContent=""; }, 1500);
+      setTimeout(()=>{ if(f.textContent==="Guardado") f.textContent=""; }, 1500);
     }
   }
-  async function saveState(){
-    state.updatedAt = new Date().toLocaleString("es-AR", {dateStyle:"short", timeStyle:"short"});
+
+  async function pushUpdate(sheet, id, column, value){
     flag("Guardando…");
     try{
-      const ok = await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
-      flag(ok ? "Guardado" : "No se pudo guardar");
-    }catch(e){ flag("No se pudo guardar"); console.error(e); }
+      const r = await apiPost({action:"update", sheet, id, column, value});
+      if(r && r.ok===false) throw new Error(r.error || "error");
+      flag("Guardado");
+    }catch(e){
+      flag("No se pudo guardar (revisá tu conexión)", true);
+      console.error("Error guardando:", e);
+    }
   }
 
   function progressOf(obj){
@@ -562,7 +590,6 @@
           <span><span class="dot" style="background:var(--teal)"></span><b>${done}</b> completados</span>
           <span><span class="dot" style="background:var(--amber)"></span><b>${inprog}</b> en curso</span>
           <span><span class="dot" style="background:var(--coral)"></span><b>${pending}</b> pendientes</span>
-          <span style="margin-left:auto; opacity:.7;">${state.updatedAt ? "Última actualización: "+state.updatedAt : ""}</span>
         </div>
       </header>
       ${rows}
@@ -570,8 +597,6 @@
   }
 
   // ---------- CHARTS ----------
-  function chartFrame(W,H,padL,padR,padT,padB){ return {W,H,padL,padR,padT,padB}; }
-
   function sparkline(values, meta, unit, cols){
     cols = cols || MESES;
     const W=640,H=130,padL=34,padR=14,padT=14,padB=22;
@@ -608,7 +633,6 @@
   }
 
   function multiSeriesChart(series, cols, unit){
-    // series: [{label, color, values, dashed?}]
     const W=640,H=150,padL=40,padR=14,padT=14,padB=22;
     const allNums = [];
     series.forEach(s=> s.values.forEach(v=>{ if(v!==""&&v!==null&&v!==undefined&&!isNaN(v)) allNums.push(Number(v)); }));
@@ -640,7 +664,6 @@
 
   const MULTI_PALETTE = ["#2F8F8B","#8449D9","#E8A33D","#E2574C","#3E73A6","#1F2B2A"];
 
-  // ---------- TABLE RESOLUTION ----------
   function resolveTable(o, ti, table){
     const stored = state.tables[o.id][ti];
     const vals = {};
@@ -667,7 +690,6 @@
     return any ? sum : null;
   }
 
-  // ---------- TABLE RENDER ----------
   function renderTableBlock(o, ti, table, resolved){
     const isMonthly = table.cols === MESES;
     const head = `<tr><th>Métrica</th><th>Meta</th>${table.cols.map((c,i)=>`<th class="${isMonthly && i===CURRENT_MONTH ? 'current':''}">${c}</th>`).join("")}</tr>`;
@@ -678,7 +700,7 @@
         if(r.editable === false){
           return `<td class="${curCls} computed">${v===""?"—":fmtUnit(v,r.u)}</td>`;
         }
-        return `<td class="${curCls}"><input type="text" inputmode="decimal" data-tbl-obj="${o.id}" data-tbl-idx="${ti}" data-row-key="${r.key}" data-col-idx="${ci}" value="${v}"></td>`;
+        return `<td class="${curCls}"><input type="text" inputmode="decimal" data-tbl-obj="${o.id}" data-tbl-idx="${ti}" data-row-key="${r.key}" data-col-idx="${ci}" data-col-label="${table.cols[ci]}" data-sheet="${isMonthly?'Mensual':'Eventos'}" value="${v}"></td>`;
       }).join("");
       const trCls = r.calcType==="total" ? "total-row" : "";
       return `<tr class="${trCls}"><td class="metric-name">${r.n}</td><td class="meta-col">${r.meta!==null && r.meta!==undefined ? fmtUnit(r.meta,r.u) : "—"}</td>${cells}</tr>`;
@@ -736,7 +758,6 @@
       </div>`;
   }
 
-  // ---------- OBJECTIVE PAGE ----------
   function renderObjective(o){
     const pct = progressOf(o);
     const st = statusOf(pct);
@@ -795,13 +816,13 @@
     const tablasHtml = o.tablas.map((t,ti)=> renderTableBlock(o, ti, t, resolved[ti])).join("");
 
     const comments = (state.comments[o.id]||[]);
-    const commentsHtml = comments.length ? comments.map((c,ci)=>`
+    const commentsHtml = comments.length ? comments.map((c)=>`
       <div class="comment">
         <div class="comment-head">
           <span class="comment-author">${c.autor}</span>
           <span style="display:flex; align-items:center; gap:8px;">
             <span class="comment-date">${c.fecha}</span>
-            <button class="comment-del" data-cm-del-obj="${o.id}" data-cm-del-idx="${ci}" title="Eliminar comentario">✕</button>
+            <button class="comment-del" data-cm-del-obj="${o.id}" data-cm-del-id="${c.id}" title="Eliminar comentario">✕</button>
           </span>
         </div>
         <p class="comment-text">${c.texto}</p>
@@ -810,7 +831,7 @@
     const commentsPanel = `
       <div class="panel">
         <h3>Comentarios</h3>
-        <p class="panel-sub">Espacio para que vos, tu jefa o tus compañeras dejen contexto sobre el avance.</p>
+        <p class="panel-sub">Espacio para que vos, tu jefa o tus compañeras dejen contexto sobre el avance. Se notifica por mail cada vez que se agrega uno.</p>
         <div class="comment-list">${commentsHtml}</div>
         <div class="comment-form">
           <input type="text" data-cm-author="${o.id}" placeholder="Tu nombre" class="comment-author-input">
@@ -822,7 +843,6 @@
     return ticket + totalBadge + tablasHtml + commentsPanel;
   }
 
-  // ---------- MASTER RENDER ----------
   function renderAll(){
     renderNav();
     const pages = document.getElementById("pages");
@@ -853,28 +873,36 @@
     document.querySelectorAll('input[data-kr-obj]').forEach(cb=>{
       cb.addEventListener('change', e=>{
         const objId = e.target.dataset.krObj, idx = Number(e.target.dataset.krIdx);
-        state.checks[objId][idx] = e.target.checked ? 100 : 0;
-        renderAll(); saveState();
+        const value = e.target.checked ? 100 : 0;
+        state.checks[objId][idx] = value;
+        renderAll();
+        pushUpdate("KRs", `kr-${objId}-${idx}`, "Avance %", value);
       });
     });
     let startTimer=null;
     document.querySelectorAll('input[data-start]').forEach(inp=>{
       inp.addEventListener('input', e=>{
-        state.starts[e.target.dataset.start] = e.target.value;
-        clearTimeout(startTimer); startTimer = setTimeout(()=>{ saveState(); renderAll(); }, 600);
+        const objId = e.target.dataset.start;
+        state.starts[objId] = e.target.value;
+        clearTimeout(startTimer);
+        startTimer = setTimeout(()=>{ pushUpdate("Config", String(Number(objId)+1), "Inicio", e.target.value); }, 600);
       });
     });
     let tblTimer=null;
     document.querySelectorAll('input[data-tbl-obj]').forEach(inp=>{
       inp.addEventListener('input', e=>{
-        const objId = e.target.dataset.tblObj, ti = e.target.dataset.tblIdx, key = e.target.dataset.rowKey, ci = Number(e.target.dataset.colIdx);
+        const objId = e.target.dataset.tblObj, ti = e.target.dataset.tblIdx, key = e.target.dataset.rowKey,
+              ci = Number(e.target.dataset.colIdx), colLabel = e.target.dataset.colLabel, sheet = e.target.dataset.sheet;
         state.tables[objId][ti][key][ci] = e.target.value;
         clearTimeout(tblTimer);
-        tblTimer = setTimeout(()=>{ saveState(); renderAll(); }, 500);
+        tblTimer = setTimeout(()=>{
+          renderAll();
+          pushUpdate(sheet, `${objId}-${key}`, colLabel, e.target.value);
+        }, 500);
       });
     });
     document.querySelectorAll('button[data-cm-submit]').forEach(btn=>{
-      btn.addEventListener('click', e=>{
+      btn.addEventListener('click', async e=>{
         const objId = e.target.dataset.cmSubmit;
         const wrap = e.target.closest('.comment-form');
         const authorInp = wrap.querySelector('[data-cm-author]');
@@ -882,41 +910,59 @@
         const texto = textArea.value.trim();
         if(!texto) return;
         const autor = authorInp.value.trim() || "Sin nombre";
-        const mesesCorto = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-        const hoy = new Date();
-        const fecha = String(hoy.getDate()).padStart(2,"0") + " " + mesesCorto[hoy.getMonth()];
-        state.comments[objId] = state.comments[objId] || [];
-        state.comments[objId].unshift({autor, fecha, texto});
-        renderAll(); saveState();
-        notifyNewComment(objId, autor, texto);
+        e.target.disabled = true;
+        flag("Guardando…");
+        try{
+          const r = await apiPost({action:"addComment", objetivo: Number(objId)+1, autor, texto});
+          const mesesCorto = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+          const hoy = new Date();
+          const fecha = String(hoy.getDate()).padStart(2,"0") + " " + mesesCorto[hoy.getMonth()];
+          state.comments[objId] = state.comments[objId] || [];
+          state.comments[objId].unshift({id: r.id || ("tmp-"+Date.now()), autor, fecha, texto});
+          flag("Guardado");
+        }catch(err){
+          flag("No se pudo guardar el comentario", true);
+          console.error(err);
+        }
+        renderAll();
       });
     });
     document.querySelectorAll('button[data-cm-del-obj]').forEach(btn=>{
-      btn.addEventListener('click', e=>{
-        const objId = e.target.dataset.cmDelObj, idx = Number(e.target.dataset.cmDelIdx);
+      btn.addEventListener('click', async e=>{
+        const objId = e.target.dataset.cmDelObj, id = e.target.dataset.cmDelId;
         if(!confirm("¿Eliminar este comentario?")) return;
-        state.comments[objId].splice(idx,1);
-        renderAll(); saveState();
+        state.comments[objId] = state.comments[objId].filter(c=>c.id!==id);
+        renderAll();
+        try{ await apiPost({action:"deleteComment", id}); }
+        catch(err){ console.error(err); }
       });
     });
   }
 
-  // Notificación por mail: pendiente de conectar a un backend real (Google Apps Script)
-  // cuando migremos la carga de datos a Google Sheets. Por ahora solo deja constancia
-  // en consola para no generar una falsa expectativa de envío de mail real.
-  function notifyNewComment(objId, autor, texto){
-    console.log(`[pendiente de conectar] Notificar a iamaro@aeropuertosargentina.com: nuevo comentario de ${autor} en objetivo ${Number(objId)+1}: "${texto}"`);
+  async function loadAndRender(){
+    try{
+      const data = await apiGet();
+      state = buildStateFromApi(data);
+      lastError = "";
+    }catch(e){
+      console.error("Error cargando datos:", e);
+      lastError = String(e);
+      if(!state) state = defaultState();
+    }
+    renderAll();
   }
 
   async function init(){
-    state = await loadState();
-    renderAll();
-    document.getElementById("resetBtn").addEventListener("click", async ()=>{
-      if(!confirm("Esto borra todo: KRs, comentarios y métricas mensuales cargadas. ¿Continuar?")) return;
-      state = defaultState();
-      renderAll();
-      await saveState();
-    });
+    state = defaultState();
+    await loadAndRender();
+    document.getElementById("resetBtn").textContent = "Actualizar ahora";
+    document.getElementById("resetBtn").addEventListener("click", loadAndRender);
+
+    setInterval(()=>{
+      const active = document.activeElement;
+      const typing = active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA");
+      if(!typing) loadAndRender();
+    }, REFRESH_MS);
   }
   init();
 })();
